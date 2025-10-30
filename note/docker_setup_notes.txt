@@ -1,0 +1,200 @@
+DOCKER + LARAVEL + NGINX TROUBLESHOOTING NOTES
+==============================================
+
+1. Common Problems Fixed
+------------------------
+- Duplicate keys in docker-compose.yml (e.g., multiple "build", "volumes", etc.)
+- Laravel "php_network_getaddresses: getaddrinfo for db failed" error
+- Wrong mount path (/var/www vs /app)
+- Accidentally deleted backend folder
+- Wrong Nginx config file mount (file vs directory)
+- "Are you trying to mount a directory onto a file (or vice-versa)?" error
+- Orphan containers using old configs
+
+--------------------------------------------------------------
+2. Correct Folder Structure
+--------------------------------------------------------------
+demo/
+├── backend/                  -> Laravel project
+├── docker/
+│   ├── app/
+│   │   └── Dockerfile
+│   └── nginx/
+│       ├── Dockerfile
+│       └── conf.d/
+│           └── default.conf
+└── docker-compose.yml
+
+--------------------------------------------------------------
+3. docker-compose.yml (simplified and correct)
+--------------------------------------------------------------
+services:
+  app:
+    build:
+      context: ./docker/app
+      dockerfile: Dockerfile
+    volumes:
+      - ./backend:/app
+    environment:
+      PHP_MEMORY_LIMIT: "512M"
+    depends_on:
+      - db
+    networks: [blognet]
+
+  nginx:
+    build:
+      context: ./docker/nginx
+      dockerfile: Dockerfile
+    ports:
+      - "8000:80"
+    volumes:
+      - ./backend:/app
+      - ./docker/nginx/conf.d:/etc/nginx/conf.d:ro
+    depends_on:
+      - app
+    networks: [blognet]
+
+  db:
+    image: mysql:8.0
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: blog
+      MYSQL_USER: blog
+      MYSQL_PASSWORD: blog
+    ports:
+      - "3307:3306"
+    volumes:
+      - dbdata:/var/lib/mysql
+    networks: [blognet]
+
+volumes:
+  dbdata:
+
+networks:
+  blognet:
+
+--------------------------------------------------------------
+4. Dockerfiles
+--------------------------------------------------------------
+docker/app/Dockerfile
+---------------------
+FROM php:8.2-fpm
+WORKDIR /app
+RUN docker-php-ext-install pdo pdo_mysql
+COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
+
+docker/nginx/Dockerfile
+-----------------------
+FROM nginx:alpine
+COPY conf.d /etc/nginx/conf.d
+
+--------------------------------------------------------------
+5. Nginx Config (docker/nginx/conf.d/default.conf)
+--------------------------------------------------------------
+server {
+    listen 80;
+    server_name _;
+    root /app/public;
+    index index.php index.html;
+
+    location / {
+        try_files $uri $uri/ /index.php?$query_string;
+    }
+
+    location ~ \.php$ {
+        include fastcgi_params;
+        fastcgi_pass app:9000;
+        fastcgi_param SCRIPT_FILENAME $realpath_root$fastcgi_script_name;
+        fastcgi_param PATH_INFO $fastcgi_path_info;
+        fastcgi_index index.php;
+    }
+
+    location ~* \.(png|jpg|jpeg|gif|svg|ico|css|js|woff2?|ttf|eot)$ {
+        try_files $uri =404;
+        expires max;
+        access_log off;
+    }
+}
+
+--------------------------------------------------------------
+6. Laravel .env
+--------------------------------------------------------------
+APP_ENV=local
+APP_DEBUG=true
+APP_URL=http://localhost:8000
+
+DB_CONNECTION=mysql
+DB_HOST=db
+DB_PORT=3306
+DB_DATABASE=blog
+DB_USERNAME=blog
+DB_PASSWORD=blog
+
+--------------------------------------------------------------
+7. Rebuild Steps
+--------------------------------------------------------------
+# stop everything, remove old containers/volumes
+docker compose down -v --remove-orphans
+
+# rebuild clean
+docker compose build --no-cache
+docker compose up -d
+
+# check config
+docker compose config | grep -n -A1 -B1 conf.d
+
+# run inside container
+docker compose exec app php artisan key:generate
+docker compose exec app php artisan migrate
+docker compose exec nginx nginx -t
+
+--------------------------------------------------------------
+8. Verification Commands
+--------------------------------------------------------------
+# check network + services
+docker compose ps
+docker compose exec app ls -la /app
+docker compose exec nginx ls -la /etc/nginx/conf.d
+docker compose exec nginx nginx -t
+docker compose logs --tail=100 nginx
+docker compose logs --tail=100 app
+
+--------------------------------------------------------------
+9. Recovery Notes
+--------------------------------------------------------------
+If you accidentally delete the backend folder:
+  composer create-project laravel/laravel backend
+
+If DB connection fails:
+  docker compose exec app ping db
+  docker compose exec app php artisan config:clear
+  docker compose exec app php artisan migrate
+
+If nginx won’t start:
+  remove bad default.conf directory
+  use conf.d/default.conf file instead
+  mount conf.d dir to /etc/nginx/conf.d
+------------------------------------------------------------------------
+10. mysql run Commands
+-------------------------------------------------------------------------
+
+# from project root (where docker-compose.yml is)
+docker compose ps                          # ensure app & db are up
+docker compose exec app getent hosts db    # must return an IP
+docker compose exec app php artisan config:clear
+docker compose exec app php artisan migrate
+
+----------------------------------------------------------------------------
+11. config/cors.php (backend)
+---------------------------------------------------------------------
+php artisan config:publish cors 
+#Laravel 12 should have CORS (Cross-Origin Resource Sharing) support enabled by default, 
+#but the cors.php config file might not exist until you publish it manually.
+# return [
+# 'paths' => ['api/*', 'sanctum/csrf-cookie', 'login', 'logout'],
+# 'allowed_methods' => ['*'],
+# 'allowed_origins' => ['http://localhost:5173'],
+# 'allowed_headers' => ['*'],
+# 'supports_credentials' => true,
+# ]; 
+------------------------------------------------------------------------

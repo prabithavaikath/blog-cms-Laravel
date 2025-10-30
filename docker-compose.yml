@@ -1,0 +1,48 @@
+services:
+  app:
+    build:
+      context: ./docker/app
+      dockerfile: Dockerfile
+    # container_name: blog_app   # optional: remove to avoid name conflicts
+    volumes:
+      - ./backend:/app                # <-- host code -> /app in container
+      - ./docker/nginx/conf.d:/etc/nginx/conf.d:ro
+    environment:
+      PHP_MEMORY_LIMIT: "512M"
+    depends_on:
+      - db
+    networks: [blognet]
+
+  nginx:
+    build:
+      context: ./docker/nginx
+      dockerfile: Dockerfile
+    # container_name: blog_nginx
+    ports:
+      - "8000:80"
+    volumes:
+      - ./backend:/app                # <-- must match app container path
+      - ./docker/nginx/conf.d:/etc/nginx/conf.d:ro
+    depends_on:
+      - app
+    networks: [blognet]
+
+  db:
+    image: mysql:8.0
+    # container_name: blog_db
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: blog
+      MYSQL_USER: blog
+      MYSQL_PASSWORD: blog
+    ports:
+      - "3307:3306"
+    volumes:
+      - dbdata:/var/lib/mysql
+    networks: [blognet]
+
+volumes:
+  dbdata:
+
+networks:
+  blognet:
