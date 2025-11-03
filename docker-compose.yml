@@ -1,35 +1,40 @@
+version: "3.9"
+
 services:
   app:
     build:
       context: ./docker/app
       dockerfile: Dockerfile
-    # container_name: blog_app   # optional: remove to avoid name conflicts
+    container_name: blog_app
     volumes:
-      - ./backend:/app                # <-- host code -> /app in container
+      - ./backend:/app
       - ./docker/nginx/conf.d:/etc/nginx/conf.d:ro
+      - ./storage:/app/storage
     environment:
       PHP_MEMORY_LIMIT: "512M"
     depends_on:
       - db
-    networks: [blognet]
+    networks:
+      - blognet
 
   nginx:
     build:
       context: ./docker/nginx
       dockerfile: Dockerfile
-    # container_name: blog_nginx
+    container_name: blog_nginx
     ports:
       - "8000:80"
     volumes:
-      - ./backend:/app                # <-- must match app container path
+      - ./backend:/app
       - ./docker/nginx/conf.d:/etc/nginx/conf.d:ro
     depends_on:
       - app
-    networks: [blognet]
+    networks:
+      - blognet
 
   db:
     image: mysql:8.0
-    # container_name: blog_db
+    container_name: blog_db
     environment:
       MYSQL_ROOT_PASSWORD: root
       MYSQL_DATABASE: blog
@@ -39,10 +44,27 @@ services:
       - "3307:3306"
     volumes:
       - dbdata:/var/lib/mysql
-    networks: [blognet]
+    networks:
+      - blognet
+
+  frontend:
+    image: node:20-alpine
+    container_name: blog_frontend
+    working_dir: /app
+    volumes:
+      - ./frontend:/app
+      - node_modules:/app/node_modules
+    command: sh -c "npm install && npm run dev -- --host"
+    ports:
+      - "5173:5173"
+    environment:
+      - VITE_API_URL=http://localhost:8000/api
+    networks:
+      - blognet
 
 volumes:
   dbdata:
+  node_modules:
 
 networks:
   blognet:

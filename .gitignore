@@ -9,7 +9,7 @@ backend/storage/app/public/
 /backend/storage/framework/views/*
 /backend/storage/logs/*
 /backend/.env
-
+/note/*
 # Composer
 composer.lock
 .env
