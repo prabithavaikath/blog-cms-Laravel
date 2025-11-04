@@ -9,7 +9,7 @@ backend/storage/app/public/
 /backend/storage/framework/views/*
 /backend/storage/logs/*
 /backend/.env
-/note/*
+
 # Composer
 composer.lock
 .env
@@ -41,6 +41,7 @@ Thumbs.db
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+/note/*
 
 # ============================================
 # Docker / Misc

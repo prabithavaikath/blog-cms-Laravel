@@ -1,35 +1,86 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from '/vite.svg'
-import './App.css'
+// ──────────────────────────────────────────────────────────────────────────────
+// FILE: src/App.tsx (Routes: public site + admin login)
+// ──────────────────────────────────────────────────────────────────────────────
+import { Navigate, Route, Routes } from "react-router-dom";
 
-function App() {
-  const [count, setCount] = useState(0)
+// PUBLIC PAGES
+import PublicHome from "./pages/PublicHome";
+import PublicPost from "./pages/PublicPost";
 
-  return (
-    <>
-      <div>
-        <a href="https://vite.dev" target="_blank">
-          <img src={viteLogo} className="logo" alt="Vite logo" />
-        </a>
-        <a href="https://react.dev" target="_blank">
-          <img src={reactLogo} className="logo react" alt="React logo" />
-        </a>
-      </div>
-      <h1>Vite + React</h1>
-      <div className="card">
-        <button onClick={() => setCount((count) => count + 1)}>
-          count is {count}
-        </button>
-        <p>
-          Edit <code>src/App.tsx</code> and save to test HMR
-        </p>
-      </div>
-      <p className="read-the-docs">
-        Click on the Vite and React logos to learn more
-      </p>
-    </>
-  )
+// AUTH
+import Login from "./pages/auth/Login";
+
+// ADMIN (guarded) — keep these if you already have them
+import Layout from "./components/Layout";            // adjust if your Layout path differs
+import Posts from "./pages/Posts";                   // adjust/remove if not created yet
+import Categories from "./pages/Categories";         // adjust/remove if not created yet
+import Users from "./pages/Users";                   // adjust/remove if not created yet
+import Settings from "./pages/Settings";             // adjust/remove if not created yet
+import RequireRole from "./components/RequireRole";  // adjust/remove if not created yet
+
+function PrivateRoute({ children }: { children: JSX.Element }) {
+  const authed = !!localStorage.getItem("token");
+  return authed ? children : <Navigate to="/login" replace />;
 }
 
-export default App
+export default function App() {
+  return (
+    <Routes>
+      {/* Public site */}
+      <Route path="/" element={<PublicHome />} />
+      <Route path="/p/:slug" element={<PublicPost />} />
+
+      {/* Auth */}
+      <Route path="/login" element={<Login />} />
+
+      {/* Admin (guarded) */}
+      <Route
+        path="/posts"
+        element={
+          <PrivateRoute>
+            <Layout onLogout={() => { localStorage.removeItem("token"); location.href = "/login"; }}>
+              <Posts />
+            </Layout>
+          </PrivateRoute>
+        }
+      />
+      <Route
+        path="/categories"
+        element={
+          <PrivateRoute>
+            <Layout onLogout={() => { localStorage.removeItem("token"); location.href = "/login"; }}>
+              <RequireRole allow={["Admin"] as any}>
+                <Categories />
+              </RequireRole>
+            </Layout>
+          </PrivateRoute>
+        }
+      />
+      <Route
+        path="/users"
+        element={
+          <PrivateRoute>
+            <Layout onLogout={() => { localStorage.removeItem("token"); location.href = "/login"; }}>
+              <RequireRole allow={["Admin"] as any}>
+                <Users />
+              </RequireRole>
+            </Layout>
+          </PrivateRoute>
+        }
+      />
+      <Route
+        path="/settings"
+        element={
+          <PrivateRoute>
+            <Layout onLogout={() => { localStorage.removeItem("token"); location.href = "/login"; }}>
+              <Settings />
+            </Layout>
+          </PrivateRoute>
+        }
+      />
+
+      {/* Fallback */}
+      <Route path="*" element={<Navigate to="/" replace />} />
+    </Routes>
+  );
+}
