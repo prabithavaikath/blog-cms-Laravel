@@ -152,13 +152,23 @@ docker compose exec nginx nginx -t
 8. Verification Commands
 --------------------------------------------------------------
 # check network + services
-docker compose ps
+
 docker compose exec app ls -la /app
 docker compose exec nginx ls -la /etc/nginx/conf.d
 docker compose exec nginx nginx -t
 docker compose logs --tail=100 nginx
 docker compose logs --tail=100 app
+# Start services in background
+docker compose up -d
 
+# Check status
+docker compose ps
+
+# View logs
+docker compose logs
+
+# Stop services
+docker compose down
 --------------------------------------------------------------
 9. Recovery Notes
 --------------------------------------------------------------

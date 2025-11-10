@@ -1,7 +1,6 @@
-// ──────────────────────────────────────────────────────────────────────────────
-// FILE: src/App.tsx (Routes: public site + admin login)
-// ──────────────────────────────────────────────────────────────────────────────
-import { Navigate, Route, Routes } from "react-router-dom";
+// src/App.tsx
+import { Navigate, Route, Routes, useLocation } from "react-router-dom";
+import { useState, useEffect } from "react";
 
 // PUBLIC PAGES
 import PublicHome from "./pages/PublicHome";
@@ -10,20 +9,66 @@ import PublicPost from "./pages/PublicPost";
 // AUTH
 import Login from "./pages/auth/Login";
 
-// ADMIN (guarded) — keep these if you already have them
-import Layout from "./components/Layout";            // adjust if your Layout path differs
-import Posts from "./pages/Posts";                   // adjust/remove if not created yet
-import Categories from "./pages/Categories";         // adjust/remove if not created yet
-import Users from "./pages/Users";                   // adjust/remove if not created yet
-import Settings from "./pages/Settings";             // adjust/remove if not created yet
-import RequireRole from "./components/RequireRole";  // adjust/remove if not created yet
+// ADMIN PAGES
+import AdminDashboard from './pages/admin/AdminDashboard';
+import AdminPosts from './pages/admin/AdminPosts';
+import AdminCategories from './pages/admin/AdminCategories';
+import AdminMedia from './pages/admin/AdminMedia';
+import AdminUsers from './pages/admin/AdminUsers';
+import AdminSettings from './pages/admin/AdminSettings';
+import AdminLayout from './components/admin/AdminLayout';
 
+// Import your AuthAPI
+import { AuthAPI } from "./lib/api";
+
+// PrivateRoute Component
 function PrivateRoute({ children }: { children: JSX.Element }) {
-  const authed = !!localStorage.getItem("token");
-  return authed ? children : <Navigate to="/login" replace />;
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
+  const location = useLocation();
+
+  useEffect(() => {
+    const checkAuth = async () => {
+      const token = localStorage.getItem('token');
+      if (!token) {
+        setIsAuthenticated(false);
+        return;
+      }
+
+      try {
+        await AuthAPI.me();
+        setIsAuthenticated(true);
+      } catch (error) {
+        console.error('Auth check failed:', error);
+        localStorage.removeItem('token');
+        setIsAuthenticated(false);
+      }
+    };
+
+    checkAuth();
+  }, [location.pathname]);
+
+  if (isAuthenticated === null) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-lg">Loading...</div>
+      </div>
+    );
+  }
+
+  if (!isAuthenticated) {
+    return <Navigate to="/login" state={{ from: location }} replace />;
+  }
+
+  return children;
 }
 
-export default function App() {
+export default function App() {    
+  const handleLogout = () => {
+    AuthAPI.logout().finally(() => {
+      window.location.href = '/login';
+    });
+  };
+
   return (
     <Routes>
       {/* Public site */}
@@ -33,52 +78,27 @@ export default function App() {
       {/* Auth */}
       <Route path="/login" element={<Login />} />
 
-      {/* Admin (guarded) */}
-      <Route
-        path="/posts"
+      {/* Admin routes */}
+      <Route 
+        path="/admin/*" 
         element={
           <PrivateRoute>
-            <Layout onLogout={() => { localStorage.removeItem("token"); location.href = "/login"; }}>
-              <Posts />
-            </Layout>
+            <AdminLayout onLogout={handleLogout} />
           </PrivateRoute>
         }
-      />
-      <Route
-        path="/categories"
-        element={
-          <PrivateRoute>
-            <Layout onLogout={() => { localStorage.removeItem("token"); location.href = "/login"; }}>
-              <RequireRole allow={["Admin"] as any}>
-                <Categories />
-              </RequireRole>
-            </Layout>
-          </PrivateRoute>
-        }
-      />
-      <Route
-        path="/users"
-        element={
-          <PrivateRoute>
-            <Layout onLogout={() => { localStorage.removeItem("token"); location.href = "/login"; }}>
-              <RequireRole allow={["Admin"] as any}>
-                <Users />
-              </RequireRole>
-            </Layout>
-          </PrivateRoute>
-        }
-      />
-      <Route
-        path="/settings"
-        element={
-          <PrivateRoute>
-            <Layout onLogout={() => { localStorage.removeItem("token"); location.href = "/login"; }}>
-              <Settings />
-            </Layout>
-          </PrivateRoute>
-        }
-      />
+      >
+        <Route index element={<Navigate to="posts" replace />} />
+        <Route path="dashboard" element={<AdminDashboard />} />
+        <Route path="posts" element={<AdminPosts />} />
+        <Route path="categories" element={<AdminCategories />} />
+        <Route path="media" element={<AdminMedia />} />
+        <Route path="users" element={<AdminUsers />} />
+        <Route path="settings" element={<AdminSettings />} />
+      </Route>
 
+      {/* Redirect legacy /posts to /admin/posts */}
+      <Route path="/posts" element={<Navigate to="/admin/posts" replace />} />
+      
       {/* Fallback */}
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>

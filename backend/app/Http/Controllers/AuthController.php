@@ -1,29 +1,53 @@
 <?php
+// app/Http/Controllers/AuthController.php
 
 namespace App\Http\Controllers;
 
+use App\Models\User;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Validation\ValidationException;
 
 class AuthController extends Controller
 {
-    public function tokenLogin(Request $r)
+    public function login(Request $request)
     {
-        $r->validate(['email'=>'required|email','password'=>'required']);
-        if (!auth()->attempt($r->only('email','password'))) {
-            return response()->json(['message'=>'Invalid'], 422);
+       
+        $request->validate([
+            'email' => 'required|email',
+            'password' => 'required',
+        ]);
+;
+        $user = User::where('email', $request->email)->first();
+
+        if (!$user || !Hash::check($request->password, $user->password)) {
+            throw ValidationException::withMessages([
+                'email' => ['The provided credentials are incorrect.'],
+            ]);
         }
-        $token = $r->user()->createToken('api')->plainTextToken;
-        return ['token' => $token];
+
+        if (!$user->is_active) {
+            throw ValidationException::withMessages([
+                'email' => ['Your account has been deactivated.'],
+            ]);
+        }
+
+        return response()->json([
+            'user' => $user,
+            'token' => $user->createToken('auth-token')->plainTextToken,
+        ]);
     }
 
-    public function me(Request $r)
+    public function logout(Request $request)
     {
-        return $r->user();
+        $request->user()->currentAccessToken()->delete();
+
+        return response()->json(['message' => 'Logged out successfully']);
     }
 
-    public function tokenLogout(Request $r)
+    public function user(Request $request)
     {
-        $r->user()->currentAccessToken()->delete();
-        return ['ok' => true];
+        return response()->json($request->user());
     }
 }

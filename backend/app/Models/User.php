@@ -6,11 +6,12 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Laravel\Sanctum\HasApiTokens; 
 
 class User extends Authenticatable
 {
     /** @use HasFactory<\Database\Factories\UserFactory> */
-    use HasFactory, Notifiable;
+    use HasFactory, Notifiable, HasApiTokens;
 
     /**
      * The attributes that are mass assignable.
@@ -18,10 +19,17 @@ class User extends Authenticatable
      * @var list<string>
      */
     protected $fillable = [
-        'name',
-        'email',
-        'password',
-    ];
+             'uuid',
+            'first_name',
+            'last_name',
+            'username',
+            'name',
+            'email',
+            'password',
+            'avatar_url',
+            'is_active',
+            'timezone'
+        ];
 
     /**
      * The attributes that should be hidden for serialization.
@@ -43,6 +51,16 @@ class User extends Authenticatable
         return [
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
+             'is_active' => 'boolean',
         ];
     }
+    // Method to automatically generate UUIDs
+protected static function boot()
+{
+    parent::boot();
+    
+    static::creating(function ($model) {
+        $model->uuid = (string) Str::uuid();
+    });
+}
 }

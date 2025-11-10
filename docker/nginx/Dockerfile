@@ -1,2 +1,2 @@
 FROM nginx:alpine
-WORKDIR /var/www
+#WORKDIR /var/www

@@ -6,7 +6,7 @@ type LayoutProps = { children: React.ReactNode; onLogout?: () => void };
 
 export default function Layout({ children, onLogout }: LayoutProps){
   const nav = useNavigate();
-  const { data: me } = useQuery({ queryKey:["auth","me"], queryFn: async()=> (await api.get("/auth/me")).data });
+  const { data: me } = useQuery({ queryKey:["auth","me"], queryFn: async()=> (await api.get("/admin")).data });
   const logout = () => { localStorage.removeItem("token"); onLogout ? onLogout() : nav("/login", { replace:true }); };
 
   return (

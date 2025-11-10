@@ -23,7 +23,7 @@ RUN mkdir -p /app/storage /app/bootstrap/cache \
     && chmod -R 775 /app/storage /app/bootstrap/cache
 
 # Switch to www-data user (no root permission issues later)
-USER www-data
+#USER www-data
 
 # Default PHP-FPM command
 CMD ["php-fpm"]

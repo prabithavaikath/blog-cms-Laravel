@@ -6,7 +6,7 @@ import { AuthAPI, setToken } from "../../lib/api";
 export default function Login() {
   const nav = useNavigate();
   const [email, setEmail] = useState("admin@example.com");
-  const [password, setPassword] = useState("password");
+  const [password, setPassword] = useState("admin123");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -14,15 +14,33 @@ export default function Login() {
     e.preventDefault();
     setError(null);
     setLoading(true);
+    
     try {
+      // Simple token-based login - no CSRF needed
       const res = await AuthAPI.login(email.trim(), password);
-      const token = res?.token || res?.access_token || res?.data?.token;
-      if (!token) throw new Error("Token missing in response");
-      localStorage.setItem("token", token);
+      
+      const token = res?.token;
+      if (!token) {
+        throw new Error("No token received from server");
+      }
+      
       setToken(token);
-      nav("/posts");
+      // Redirect to admin posts instead of /posts
+      nav("/admin/posts", { replace: true });
+      
     } catch (err: any) {
-      setError(err?.response?.data?.message || err?.message || "Login failed");
+      console.error('Login error:', err);
+      
+      if (err?.response?.status === 422 && err?.response?.data?.errors) {
+        const errors = err.response.data.errors;
+        setError(Object.values(errors).flat().join(', '));
+      } else if (err?.response?.data?.message) {
+        setError(err.response.data.message);
+      } else if (err?.message) {
+        setError(err.message);
+      } else {
+        setError("Login failed. Please check your credentials.");
+      }
     } finally {
       setLoading(false);
     }
@@ -34,8 +52,8 @@ export default function Login() {
         <div className="flex items-center gap-2">
           <span className="w-8 h-8 rounded-xl bg-gradient-to-br from-[#7c64f6] via-[#ec4899] to-[#3b82f6]" />
           <div>
-            <div className="font-extrabold">Admin</div>
-            <div className="text-xs text-slate-500">Sign in to continue</div>
+            <div className="font-extrabold">Admin Dashboard</div>
+            <div className="text-xs text-slate-500">Token-based Authentication</div>
           </div>
         </div>
         <form onSubmit={submit} className="mt-6 space-y-4">
@@ -47,6 +65,7 @@ export default function Login() {
               onChange={(e) => setEmail(e.target.value)}
               required
               className="mt-1 w-full rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-3 py-2 text-sm"
+              placeholder="admin@example.com"
             />
           </label>
           <label className="block text-sm">
@@ -57,6 +76,7 @@ export default function Login() {
               onChange={(e) => setPassword(e.target.value)}
               required
               className="mt-1 w-full rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-3 py-2 text-sm"
+              placeholder="Enter your password"
             />
           </label>
           {error && (
@@ -65,13 +85,14 @@ export default function Login() {
             </div>
           )}
           <button
+            type="submit"
             disabled={loading}
-            className="w-full rounded-xl bg-gradient-to-r from-[#7c64f6] via-[#ec4899] to-[#3b82f6] text-white py-2 text-sm font-semibold"
+            className="w-full rounded-xl bg-gradient-to-r from-[#7c64f6] via-[#ec4899] to-[#3b82f6] text-white py-2 text-sm font-semibold disabled:opacity-50"
           >
-            {loading ? "Signing in…" : "Sign in"}
+            {loading ? "Signing in…" : "Sign in with Token"}
           </button>
           <div className="text-center text-xs text-slate-500">
-            Back to <Link to="/" className="underline">Home</Link>
+            Back to <Link to="/" className="underline">Public Site</Link>
           </div>
         </form>
       </div>

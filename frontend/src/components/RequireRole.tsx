@@ -7,7 +7,7 @@ type Props = { allow: string[]; children: React.ReactNode };
 export default function RequireRole({ allow, children }: Props) {
   const { data: me, isLoading } = useQuery({
     queryKey: ["auth", "me"],
-    queryFn: async () => (await api.get("/auth/me")).data,
+    queryFn: async () => (await api.get("/admin")).data,
   });
 
   if (isLoading) return <div className="p-4 text-sm">Checking access…</div>;

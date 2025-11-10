@@ -3,7 +3,7 @@ services:
     build:
       context: ./docker/app
       dockerfile: Dockerfile
-    container_name: blog_app
+    container_name: learning_app
     volumes:
       - ./backend:/app
       - ./docker/nginx/conf.d:/etc/nginx/conf.d:ro
@@ -19,7 +19,7 @@ services:
     build:
       context: ./docker/nginx
       dockerfile: Dockerfile
-    container_name: blog_nginx
+    container_name: learning_nginx
     ports:
       - "8000:80"
     volumes:
@@ -32,7 +32,7 @@ services:
 
   db:
     image: mysql:8.0
-    container_name: blog_db
+    container_name: learning_db
     environment:
       MYSQL_ROOT_PASSWORD: root
       MYSQL_DATABASE: blog
@@ -47,7 +47,7 @@ services:
 
   frontend:
     image: node:20-alpine
-    container_name: blog_frontend
+    container_name: learning_frontend
     working_dir: /app
     volumes:
       - ./frontend:/app
@@ -66,3 +66,4 @@ volumes:
 
 networks:
   blognet:
+    driver: bridge  # Add this line

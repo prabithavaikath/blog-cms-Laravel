@@ -11,9 +11,28 @@ return Application::configure(basePath: dirname(__DIR__))
         commands: __DIR__.'/../routes/console.php',
         health: '/up',
     )
-    ->withMiddleware(function (Middleware $middleware): void {
-        //
+    
+    ->withMiddleware(function (Middleware $middleware) {
+        // Disable CSRF protection for all API routes
+        $middleware->validateCsrfTokens(except: [
+            'api/*',
+            'login',
+            'logout',
+            'sanctum/csrf-cookie',
+        ]);
+        // Add your CORS middleware here
+        $middleware->api(prepend: [
+            \Laravel\Sanctum\Http\Middleware\EnsureFrontendRequestsAreStateful::class,
+        ]);
+
+        $middleware->alias([
+            'auth' => \App\Http\Middleware\Authenticate::class,
+            // Add any other aliases you need
+        ]);
+
+        // Add global middleware for CORS
+        $middleware->append(\Illuminate\Http\Middleware\HandleCors::class);
     })
-    ->withExceptions(function (Exceptions $exceptions): void {
+    ->withExceptions(function (Exceptions $exceptions) {
         //
     })->create();
